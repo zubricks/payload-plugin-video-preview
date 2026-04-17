@@ -23,12 +23,26 @@ export const getAfterChangeHook =
     if (req.context?.skipVideoProcessing) return doc;
     if (typeof doc.mimeType !== "string" || !doc.mimeType.startsWith("video/"))
       return doc;
-    if (operation === "update" && doc.filename === previousDoc?.filename)
-      return doc;
-    if (!req.file?.data) return doc;
 
-    const { startTime = 0, duration = 15 } = options.clipOptions ?? {};
-    const thumbnailTime = options.thumbnailTime ?? 1;
+    const isNewFile = operation === "create" || doc.filename !== previousDoc?.filename;
+    const isReprocess = operation === "update" && doc.reprocessVideo === true;
+    if (!isNewFile && !isReprocess) return doc;
+
+    // Get the file buffer — from the fresh upload or by fetching the existing file URL
+    let fileBuffer: Buffer;
+    if (req.file?.data) {
+      fileBuffer = req.file.data as Buffer;
+    } else if (isReprocess && doc.url) {
+      const response = await fetch(doc.url as string);
+      fileBuffer = Buffer.from(await response.arrayBuffer());
+    } else {
+      return doc;
+    }
+
+    // Per-doc overrides fall back to plugin-level config
+    const startTime = (doc.clipStartTime as number | null) ?? options.clipOptions?.startTime ?? 0;
+    const duration = (doc.clipDuration as number | null) ?? options.clipOptions?.duration ?? 15;
+    const thumbnailTime = (doc.thumbnailTime as number | null) ?? options.thumbnailTime ?? 1;
     const prefix = options.vercelBlob.prefix ?? "video-previews/";
     const token = options.vercelBlob.token;
 
@@ -41,7 +55,7 @@ export const getAfterChangeHook =
     const thumbPath = path.join(tmpDir, `${basename}-thumbnail.jpg`);
 
     try {
-      await fs.writeFile(inputPath, req.file.data as Buffer);
+      await fs.writeFile(inputPath, fileBuffer);
 
       await runFFmpeg(
         ffmpeg(inputPath)
@@ -97,6 +111,7 @@ export const getAfterChangeHook =
             mimeType: "image/jpeg",
             url: thumbResult.url,
           },
+          reprocessVideo: false,
         },
       });
     } catch (err) {
