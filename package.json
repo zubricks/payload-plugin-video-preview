@@ -1,5 +1,5 @@
 {
-  "name": "payload-plugin-video-preview",
+  "name": "@zubricks/payload-plugin-video-preview",
   "version": "0.1.0",
   "description": "Payload CMS plugin that auto-generates a preview clip and thumbnail from video uploads",
   "keywords": [
