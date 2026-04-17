@@ -12,6 +12,9 @@
     "thumbnail"
   ],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "Sean Zubrickas <zubricks@gmail.com>",
   "type": "module",
   "exports": {
